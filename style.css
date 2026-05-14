@@ -1,0 +1,331 @@
+:root {
+  /* Typography - Geist & Geist Mono */
+  --font-family:
+    "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", "Monaco", "Courier New", monospace;
+  --p: 1rem/1.5em var(--font-family);
+  --small: 0.75rem/1.5em var(--font-mono);
+  --h1: 2rem/1.2em var(--font-family);
+  --h2: 1.5rem/1.2em var(--font-family);
+
+  /* Light Theme - Grayscale */
+  --bg-dark: oklch(96% 0 0);
+  --bg: oklch(98% 0 0);
+  --bg-light: oklch(100% 0 0);
+  --text: oklch(0% 0 0);
+  --text-muted: oklch(48% 0 0);
+}
+
+/* Dark Theme Overrides - Grayscale */
+[data-theme="dark"] {
+  --bg-dark: oklch(0.1 0 264);
+  --bg: oklch(0.2 0 264);
+  --bg-light: oklch(0.3 0 264);
+  --text: oklch(0.96 0 264);
+  --text-muted: oklch(0.76 0 264);
+  --primary: oklch(0.9 0.17 100);
+  --secondary: oklch(0.65 0.15 264);
+  --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+  --shadow-s:
+    inset 0 1px 2px #ffffff30, 0 1px 2px #00000030, 0 2px 4px #00000015;
+  --shadow-m:
+    inset 0 1px 2px #ffffff50, 0 2px 4px #00000030, 0 4px 8px #00000015;
+  --transition: all 0.3s ease-in-out;
+}
+
+/* Reset & Base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font: var(--p);
+  background: var(--bg-dark);
+  color: var(--text);
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@supports (font-variation-settings: normal) {
+  body {
+    font-family:
+      "Geist",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+}
+
+/* App Layout */
+.app-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.view {
+  display: none;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.view.active {
+  display: flex;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  background: var(--bg);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.nav-btn {
+  background: var(--bg);
+  border: none;
+  color: var(--text-muted);
+  font: var(--small);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 1rem;
+}
+.nav-btn.active {
+  color: var(--text);
+}
+.nav-btn svg {
+  width: 2rem;
+  height: 2rem;
+  fill: currentColor;
+}
+
+/* Home View (Logger) */
+#home {
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+}
+.log-btn {
+  background: var(--bg);
+  box-shadow: var(--shadow-s);
+  color: var(--text);
+  border: none;
+  border-radius: 8px;
+  padding: 1.5rem 3rem;
+  font: var(--h2);
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  max-width: 300px;
+  transition: all 0.2s;
+}
+.log-btn:hover {
+  background: var(--bg-light);
+  box-shadow: var(--shadow-m);
+}
+
+/* Timeline View (Chat style) */
+#timeline {
+  padding: 1rem;
+  scroll-behavior: smooth;
+}
+.date-divider {
+  align-self: center;
+  background: var(--bg);
+  color: var(--text-muted);
+  font: var(--small);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+}
+.exercise-bubble {
+  color: var(--text);
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: capitalize;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.delete-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px;
+  transition: color 0.2s;
+}
+.delete-btn.visible {
+  display: inline;
+}
+.delete-btn:hover {
+  color: var(--text);
+}
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 50px;
+  font: var(--p);
+}
+
+/* Settings View */
+#settings {
+  padding: 2rem 1rem;
+  gap: 1.5rem;
+  align-items: center;
+}
+.settings-card {
+  background: var(--bg-light);
+  border-radius: 8px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.settings-btn {
+  background: var(--bg-light);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: var(--p);
+  width: 100%;
+  text-align: center;
+  transition: background 0.2s;
+}
+.settings-btn:hover {
+  background: var(--bg-dark);
+}
+
+/* Undo Toast */
+.toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--bg-dark);
+  color: var(--text);
+  padding: 12px 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 100;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+.undo-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  font: var(--p);
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  transition: opacity 0.2s;
+}
+.undo-btn:hover {
+  opacity: 0.7;
+}
+
+/* Delete Confirmation Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+.modal-overlay.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-text {
+  color: var(--text);
+  font: var(--p);
+  margin-bottom: 1.5rem;
+}
+.modal-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+.modal-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font: var(--p);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal-btn.cancel {
+  background: var(--bg);
+  color: var(--text);
+}
+.modal-btn.cancel:active {
+  background: var(--bg-dark);
+}
+.modal-btn.delete {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  font-weight: 500;
+}
+.modal-btn.delete:active {
+  opacity: 0.8;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
