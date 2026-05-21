@@ -1,7 +1,6 @@
 // --- STATE MANAGEMENT ---
 let exercises = JSON.parse(localStorage.getItem("exercises")) || [];
 let lastLoggedId = null;
-let toastTimeout;
 let deleteTargetId = null;
 
 // --- CORE LOGIC ---
@@ -24,17 +23,6 @@ function logExercise(type) {
   exercises.push(entry);
   lastLoggedId = entry.id;
   saveData();
-
-  // Show Undo Toast
-  const toast = document.getElementById("undo-toast");
-  document.getElementById("toast-msg").innerText = `Added ${type}`;
-  toast.classList.add("show");
-
-  clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => {
-    toast.classList.remove("show");
-    lastLoggedId = null; // Clear undo window
-  }, 4000);
 }
 
 function deleteExercise(id) {
@@ -58,21 +46,12 @@ function closeDeleteModal() {
 
 // Hide delete buttons when clicking elsewhere
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".exercise-bubble") && !e.target.closest(".modal")) {
-    document.querySelectorAll(".delete-btn.visible").forEach(btn => {
+  if (!e.target.closest(".log-div") && !e.target.closest(".modal")) {
+    document.querySelectorAll(".delete-btn.visible").forEach((btn) => {
       btn.classList.remove("visible");
     });
   }
 });
-
-function undoLastLog() {
-  if (lastLoggedId) {
-    exercises = exercises.filter((e) => e.id !== lastLoggedId);
-    saveData();
-    lastLoggedId = null;
-    document.getElementById("undo-toast").classList.remove("show");
-  }
-}
 
 function saveData() {
   localStorage.setItem("exercises", JSON.stringify(exercises));
@@ -110,68 +89,70 @@ function renderTimeline() {
   let currentDate = null;
 
   exercises.forEach((entry) => {
-    // Insert Date Divider if day changed
-    if (entry.dateStr !== currentDate) {
-      const dateDiv = document.createElement("div");
-      dateDiv.className = "date-divider";
-      dateDiv.innerText = entry.dateStr;
-      container.appendChild(dateDiv);
-      currentDate = entry.dateStr;
-    }
+    // Insert Date
+
+    const dateDiv = document.createElement("div");
+    dateDiv.className = "date-divider";
+    dateDiv.innerText = entry.dateStr;
+    currentDate = entry.dateStr;
 
     // Insert Exercise Bubble
+    const logDiv = document.createElement("div");
+    logDiv.className = "log-div";
     const bubble = document.createElement("div");
     bubble.className = "exercise-bubble";
-    
+
     const typeSpan = document.createElement("span");
     typeSpan.className = "type";
     typeSpan.textContent = entry.type;
-    
+
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
-    deleteBtn.textContent = "✖";
+    deleteBtn.textContent = "DELETE";
     deleteBtn.dataset.id = entry.id;
-    
+
     bubble.appendChild(typeSpan);
-    bubble.appendChild(deleteBtn);
 
     // Add click/long-press handler
     let pressTimer;
     let isLongPress = false;
-    
-    bubble.addEventListener("mousedown", () => {
+
+    logDiv.addEventListener("mousedown", () => {
       pressTimer = setTimeout(() => {
         deleteBtn.classList.add("visible");
       }, 500);
     });
-    bubble.addEventListener("mouseup", () => clearTimeout(pressTimer));
-    bubble.addEventListener("mouseleave", () => clearTimeout(pressTimer));
+    logDiv.addEventListener("mouseup", () => clearTimeout(pressTimer));
+    logDiv.addEventListener("mouseleave", () => clearTimeout(pressTimer));
 
-    bubble.addEventListener("click", (e) => {
+    logDiv.addEventListener("click", (e) => {
       if (e.target === typeSpan) {
         deleteBtn.classList.add("visible");
       }
     });
 
-    bubble.addEventListener("touchstart", () => {
+    logDiv.addEventListener("touchstart", () => {
       isLongPress = false;
       pressTimer = setTimeout(() => {
         isLongPress = true;
         deleteBtn.classList.add("visible");
       }, 500);
     });
-    
-    bubble.addEventListener("touchend", () => {
+
+    logDiv.addEventListener("touchend", () => {
       clearTimeout(pressTimer);
     });
-    
+
     // Direct click handler for delete button
     deleteBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       deleteExercise(entry.id);
     });
 
-    container.appendChild(bubble);
+    logDiv.appendChild(bubble);
+    logDiv.appendChild(dateDiv);
+    logDiv.appendChild(deleteBtn);
+    container.appendChild(logDiv);
   });
 
   // Scroll to extreme bottom (like opening a WhatsApp chat)

@@ -14,6 +14,7 @@
   --bg-light: oklch(100% 0 0);
   --text: oklch(0% 0 0);
   --text-muted: oklch(48% 0 0);
+  --danger: tomato;
 }
 
 /* Dark Theme Overrides - Grayscale */
@@ -23,6 +24,7 @@
   --bg-light: oklch(0.3 0 264);
   --text: oklch(0.96 0 264);
   --text-muted: oklch(0.76 0 264);
+  --danger: tomato;
   --primary: oklch(0.9 0.17 100);
   --secondary: oklch(0.65 0.15 264);
   --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -112,7 +114,16 @@ body {
   justify-content: center;
   align-items: center;
   gap: 2rem;
-  padding: 2rem;
+  max-width: 90vw;
+  margin: 0 auto;
+  position: relative;
+}
+.version {
+  position: absolute;
+  top: 1rem;
+  right: 0;
+  font: var(--small);
+  color: var(--text-muted);
 }
 .log-btn {
   background: var(--bg);
@@ -125,7 +136,6 @@ body {
   font-weight: 500;
   cursor: pointer;
   width: 100%;
-  max-width: 300px;
   transition: all 0.2s;
 }
 .log-btn:hover {
@@ -138,36 +148,44 @@ body {
   padding: 1rem;
   scroll-behavior: smooth;
 }
-.date-divider {
-  align-self: center;
-  background: var(--bg);
-  color: var(--text-muted);
-  font: var(--small);
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-}
-.exercise-bubble {
-  color: var(--text);
-  padding: 0.25rem;
-  border-radius: 0.5rem;
-  margin-bottom: 0.5rem;
+.log-div {
   display: flex;
   align-items: center;
-  justify-content: center;
-  text-transform: capitalize;
+  justify-content: space-between;
+  background: var(--bg);
+  box-shadow: var(--shadow-s);
+  padding: 0.25rem 1rem;
+  border-radius: 1rem;
+  margin-bottom: 1rem;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+.log-div:hover,
+.log-div:active {
+  box-shadow: var(--shadow-m);
+}
+.date-divider {
+  background: var(--bg);
+  color: var(--text-muted);
+  font: var(--small);
+  border-radius: 0.5rem;
+}
+.exercise-bubble {
+  color: var(--text);
+  text-transform: capitalize;
+}
 
 .delete-btn {
   display: none;
-  background: none;
+  background: var(--danger);
   border: none;
-  color: var(--text-muted);
+  border-radius: 1rem;
+  font: var(--small);
+  color: var(--text);
+  padding: 0.125rem 0.75rem;
+  margin-right: -0.6rem;
   cursor: pointer;
-  font-size: 1.2rem;
-  padding: 4px;
   transition: color 0.2s;
 }
 .delete-btn.visible {
@@ -221,41 +239,6 @@ body {
   background: var(--bg-dark);
 }
 
-/* Undo Toast */
-.toast {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: var(--bg-dark);
-  color: var(--text);
-  padding: 12px 24px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid var(--border);
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  z-index: 100;
-}
-.toast.show {
-  transform: translateX(-50%) translateY(0);
-}
-.undo-btn {
-  background: none;
-  border: none;
-  color: var(--text);
-  font-weight: 500;
-  cursor: pointer;
-  font: var(--p);
-  text-transform: uppercase;
-  font-size: 0.875rem;
-  transition: opacity 0.2s;
-}
-.undo-btn:hover {
-  opacity: 0.7;
-}
-
 /* Delete Confirmation Modal */
 .modal-overlay {
   display: none;
@@ -307,8 +290,8 @@ body {
   background: var(--bg-dark);
 }
 .modal-btn.delete {
-  background: var(--text);
-  color: var(--bg);
+  background: var(--danger);
+  color: var(--text);
   border-color: var(--text);
   font-weight: 500;
 }
@@ -316,8 +299,12 @@ body {
   opacity: 0.8;
 }
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes slideUp {
   from {
