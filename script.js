@@ -101,17 +101,13 @@ function renderTimeline() {
     logDiv.className = "log-div";
     const bubble = document.createElement("div");
     bubble.className = "exercise-bubble";
-
-    const typeSpan = document.createElement("span");
-    typeSpan.className = "type";
-    typeSpan.textContent = entry.type;
+    bubble.textContent = entry.type;
+    logDiv.classList.add(entry.type === "pushup" ? "pushup" : "pullup");
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
     deleteBtn.textContent = "DELETE";
     deleteBtn.dataset.id = entry.id;
-
-    bubble.appendChild(typeSpan);
 
     // Add click/long-press handler
     let pressTimer;
