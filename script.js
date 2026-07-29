@@ -81,24 +81,6 @@ function switchView(viewId, btnElement) {
 function renderTimeline() {
   const container = document.getElementById("timeline");
   container.innerHTML = "";
-
-  // log buttons
-  const pushupBtn = document.createElement("button");
-  pushupBtn.textContent = "Pushup";
-  pushupBtn.className = "log-btn pushup";
-  const pullupBtn = document.createElement("button");
-  pullupBtn.textContent = "Pullup";
-  pullupBtn.className = "log-btn pullup";
-
-  // log buttons trigger
-  pushupBtn.addEventListener("click", () => logExercise("pushup"));
-  pullupBtn.addEventListener("click", () => logExercise("pullup"));
-
-  if (exercises.length === 0) {
-    container.innerHTML = `<div class="empty-state">No exercises logged yet.<br>Go to Home and push a button!</div>`;
-    return;
-  }
-
   let currentDate = null;
 
   exercises.forEach((entry) => {
@@ -162,8 +144,6 @@ function renderTimeline() {
     logDiv.appendChild(dateDiv);
     logDiv.appendChild(deleteBtn);
     container.appendChild(logDiv);
-    container.appendChild(pushupBtn);
-    container.appendChild(pullupBtn);
   });
 
   // Scroll to extreme bottom (like opening a WhatsApp chat)

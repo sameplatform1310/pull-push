@@ -22,7 +22,7 @@
       <!-- SETTINGS VIEW -->
 
       <div id="settings" class="view">
-        <div class="version">v1.0.3</div>
+        <div class="version">v1.0.4</div>
         <div class="settings-card">
           <div class="settings-row">
             <span>Dark Mode</span>
@@ -53,12 +53,6 @@
         </div>
       </div>
 
-      <!-- UNDO TOAST -->
-      <div id="undo-toast" class="toast">
-        <span id="toast-msg">Logged</span>
-        <button class="undo-btn" onclick="undoLastLog()">UNDO</button>
-      </div>
-
       <!-- DELETE CONFIRMATION MODAL -->
       <div id="delete-modal" class="modal-overlay">
         <div class="modal">
@@ -75,6 +69,14 @@
       </div>
     </div>
 
+    <div class="log-buttons">
+      <button class="log-btn pushup" onclick="logExercise('pushup')">
+        Pushup
+      </button>
+      <button class="log-btn pullup" onclick="logExercise('pullup')">
+        Pullup
+      </button>
+    </div>
     <!-- BOTTOM NAV -->
     <nav class="bottom-nav">
       <button class="nav-btn active" onclick="switchView('timeline', this)">

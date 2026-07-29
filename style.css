@@ -43,6 +43,7 @@
   padding: 0;
 }
 body {
+  margin: 0 auto;
   font: var(--p);
   background: var(--bg-dark);
   color: var(--text);
@@ -117,22 +118,27 @@ body {
   font: var(--small);
   color: var(--text-muted);
 }
+.log-buttons {
+  margin: 1rem auto;
+  max-width: 90vw;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
 .log-btn {
   background: var(--bg);
   box-shadow: var(--shadow-s);
   color: var(--text);
   border: none;
   border-radius: 1rem;
-  margin: 1rem auto;
   padding: 1.5rem 3rem;
   font: var(--h2);
   font-weight: 500;
   cursor: pointer;
-  width: 100%;
   transition: all 0.2s;
 }
 .log-btn:hover {
-  background: var(--bg-light);
+  scale: 1.05;
   box-shadow: var(--shadow-m);
 }
 .pushup {
