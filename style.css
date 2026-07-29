@@ -110,15 +110,6 @@ body {
   fill: currentColor;
 }
 
-/* Home View (Logger) */
-#home {
-  justify-content: center;
-  align-items: center;
-  gap: 2rem;
-  max-width: 90vw;
-  margin: 0 auto;
-  position: relative;
-}
 .version {
   position: absolute;
   top: 1rem;
@@ -131,7 +122,8 @@ body {
   box-shadow: var(--shadow-s);
   color: var(--text);
   border: none;
-  border-radius: 8px;
+  border-radius: 1rem;
+  margin: 1rem auto;
   padding: 1.5rem 3rem;
   font: var(--h2);
   font-weight: 500;
