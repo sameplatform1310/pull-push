@@ -13,7 +13,7 @@ function getFormattedDate() {
     day: "numeric",
   });
 }
-
+currentDate.textContent = getFormattedDate();
 function logExercise(type) {
   const entry = {
     id: Date.now(),

@@ -118,6 +118,13 @@ body {
   font: var(--small);
   color: var(--text-muted);
 }
+
+#currentDate {
+  text-align: center;
+  margin: 1rem 0;
+  color: var(--text-muted);
+}
+
 .log-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
