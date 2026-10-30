@@ -22,216 +22,305 @@ const db = initializeFirestore(app, {
   }),
 });
 
-// --- STATE MANAGEMENT ---
+// --- STATE ---
 // Data lives in one doc per month: months/{YYYY-MM},
 // holding an `entries` map of { [timestamp]: { type } }.
 // Few docs = few reads, which keeps the app well inside the free tier.
+const NAMES = { pushup: "Pushup", pullup: "Pullup" };
 let exercises = [];
-let deleteTargetId = null;
+let syncMeta = { fromCache: true, hasPendingWrites: false };
+let editTarget = null;
+let scrollToEnd = true;
 
-// --- CORE LOGIC ---
-function getFormattedDate(time = Date.now()) {
-  // Returns format: "Sun, May 10"
-  return new Date(time).toLocaleDateString("en-US", {
+const $ = (selector) => document.querySelector(selector);
+const timeline = $("#timeline");
+const editDialog = $("#edit-dialog");
+const editForm = $("#edit-form");
+const deleteBtn = $("#delete-entry");
+
+// --- DATES ---
+const pad = (n) => String(n).padStart(2, "0");
+
+// Calendar days between a timestamp and today (0 = today)
+function daysAgo(time) {
+  const midnight = (t) => new Date(t).setHours(0, 0, 0, 0);
+  return Math.round((midnight(Date.now()) - midnight(time)) / 864e5);
+}
+
+function dayLabel(time) {
+  const days = daysAgo(time);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  const date = new Date(time);
+  const thisYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
+    year: thisYear ? undefined : "numeric",
   });
 }
-document.getElementById("currentDate").textContent = getFormattedDate();
 
+function lastLabel(time) {
+  const days = daysAgo(time);
+  if (days <= 0) return "Today";
+  return days === 1 ? "Yesterday" : `${days} days ago`;
+}
+
+function timeLabel(time) {
+  return new Date(time).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// --- DATA ---
 function monthRef(id) {
   // UTC month, so an entry maps to the same doc in any timezone
-  const month = new Date(id).toISOString().slice(0, 7);
-  return doc(db, "months", month);
+  return doc(db, "months", new Date(id).toISOString().slice(0, 7));
 }
 
 function logExercise(type) {
   const id = Date.now();
+  scrollToEnd = true;
   setDoc(monthRef(id), { entries: { [id]: { type } } }, { merge: true }).catch(
     showError,
   );
 }
 
-function deleteExercise(id) {
-  deleteTargetId = id;
-  document.getElementById("delete-modal").classList.add("show");
-}
-
-function confirmDelete() {
-  if (deleteTargetId) {
-    updateDoc(monthRef(deleteTargetId), {
-      [`entries.${deleteTargetId}`]: deleteField(),
-    }).catch(showError);
-    closeDeleteModal();
+// A new date/time changes the entry's key (and maybe its month doc),
+// so the old key is removed and the new one written in one batch
+function saveEntry(oldId, id, type) {
+  const batch = writeBatch(db);
+  if (id !== oldId) {
+    batch.update(monthRef(oldId), { [`entries.${oldId}`]: deleteField() });
   }
+  batch.set(monthRef(id), { entries: { [id]: { type } } }, { merge: true });
+  batch.commit().catch(showError);
 }
 
-function closeDeleteModal() {
-  document.getElementById("delete-modal").classList.remove("show");
-  deleteTargetId = null;
-}
-
-// Hide delete buttons when clicking elsewhere
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".log-div") && !e.target.closest(".modal")) {
-    document.querySelectorAll(".delete-btn.visible").forEach((btn) => {
-      btn.classList.remove("visible");
-    });
-  }
-});
-
-function showError(err) {
-  alert("Something went wrong: " + err.message);
-}
-
-// --- SYNC ---
-function listen() {
-  onSnapshot(
-    collection(db, "months"),
-    (snapshot) => {
-      exercises = snapshot.docs
-        .flatMap((d) => Object.entries(d.data().entries || {}))
-        .map(([id, entry]) => ({ id: Number(id), type: entry.type }))
-        .sort((a, b) => a.id - b.id);
-      renderTimeline();
-    },
+function deleteEntry(id) {
+  updateDoc(monthRef(id), { [`entries.${id}`]: deleteField() }).catch(
     showError,
   );
 }
 
 // Writes a list of entries (from a backup file or old local data).
 // Safe to repeat: entries are keyed by timestamp, so nothing duplicates.
-function uploadEntries(list) {
+async function uploadEntries(list) {
+  const valid = list.filter((e) => Number.isFinite(e.id) && NAMES[e.type]);
   const batch = writeBatch(db);
   const months = {};
-  list
-    .filter(
-      (e) => Number.isFinite(e.id) && ["pushup", "pullup"].includes(e.type),
-    )
-    .forEach((e) => {
-      const ref = monthRef(e.id);
-      months[ref.id] ??= { ref, entries: {} };
-      months[ref.id].entries[e.id] = { type: e.type };
-    });
+  valid.forEach((e) => {
+    const ref = monthRef(e.id);
+    months[ref.id] ??= { ref, entries: {} };
+    months[ref.id].entries[e.id] = { type: e.type };
+  });
   Object.values(months).forEach(({ ref, entries }) =>
     batch.set(ref, { entries }, { merge: true }),
   );
-  return batch.commit();
+  await batch.commit();
+  return valid.length;
 }
 
 // One-time move of data saved in this browser before the cloud version
 async function migrateLocalData() {
   const local = JSON.parse(localStorage.getItem("exercises")) || [];
   if (!local.length) return;
-  await uploadEntries(local);
+  const count = await uploadEntries(local);
   localStorage.setItem("exercises-backup", JSON.stringify(local));
   localStorage.removeItem("exercises");
-  alert(`Moved ${local.length} entries from this browser to the cloud.`);
+  toast(`Moved ${count} entries from this browser to the cloud`);
 }
 
-// --- UI & RENDER LOGIC ---
-function switchView(viewId, btnElement) {
-  // Hide all views
-  document
-    .querySelectorAll(".view")
-    .forEach((el) => el.classList.remove("active"));
-  document.getElementById(viewId).classList.add("active");
+function listen() {
+  onSnapshot(
+    collection(db, "months"),
+    { includeMetadataChanges: true },
+    (snapshot) => {
+      syncMeta = snapshot.metadata;
+      // The database is open, so skip anything that isn't a real entry
+      exercises = snapshot.docs
+        .flatMap((d) => Object.entries(d.data().entries || {}))
+        .map(([id, entry]) => ({ id: Number(id), type: entry?.type }))
+        .filter((e) => Number.isFinite(e.id) && NAMES[e.type])
+        .sort((a, b) => a.id - b.id);
+      render();
+    },
+    showError,
+  );
+}
 
-  // Update nav styling
-  document
-    .querySelectorAll(".nav-btn")
-    .forEach((el) => el.classList.remove("active"));
-  btnElement.classList.add("active");
-
-  // Render/Scroll logic for Timeline
-  if (viewId === "timeline") {
-    renderTimeline();
-  }
+// --- RENDER ---
+function render() {
+  renderTimeline();
+  renderButtons();
+  renderStats();
+  renderSync();
 }
 
 function renderTimeline() {
-  const container = document.getElementById("timeline");
-  container.innerHTML = "";
+  const nearEnd =
+    timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 80;
+  timeline.replaceChildren();
 
+  if (!exercises.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = syncMeta.fromCache
+      ? "Loading…"
+      : "Nothing logged yet. Tap a button below to start.";
+    timeline.append(empty);
+    return;
+  }
+
+  let day = null;
+  let list;
   exercises.forEach((entry) => {
-    // Insert Date
-    const dateDiv = document.createElement("div");
-    dateDiv.className = "date-divider";
-    dateDiv.innerText = getFormattedDate(entry.id);
+    // Start a new group whenever the day changes
+    const label = dayLabel(entry.id);
+    if (label !== day) {
+      day = label;
+      const heading = document.createElement("h2");
+      heading.className = "day";
+      heading.textContent = label;
+      list = document.createElement("div");
+      list.className = "day-list";
+      timeline.append(heading, list);
+    }
 
-    // Insert Exercise Bubble
-    const logDiv = document.createElement("div");
-    logDiv.className = "log-div";
-    const bubble = document.createElement("div");
-    bubble.className = "exercise-bubble";
-    bubble.textContent = entry.type;
-    logDiv.classList.add(entry.type === "pushup" ? "pushup" : "pullup");
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "delete-btn";
-    deleteBtn.textContent = "DELETE";
-    deleteBtn.dataset.id = entry.id;
-
-    // Long-press shows the delete button
-    let pressTimer;
-
-    logDiv.addEventListener("mousedown", () => {
-      pressTimer = setTimeout(() => {
-        deleteBtn.classList.add("visible");
-      }, 500);
-    });
-    logDiv.addEventListener("mouseup", () => clearTimeout(pressTimer));
-    logDiv.addEventListener("mouseleave", () => clearTimeout(pressTimer));
-
-    logDiv.addEventListener("touchstart", () => {
-      pressTimer = setTimeout(() => {
-        deleteBtn.classList.add("visible");
-      }, 500);
-    });
-
-    logDiv.addEventListener("touchend", () => {
-      clearTimeout(pressTimer);
-    });
-
-    // Direct click handler for delete button
-    deleteBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteExercise(entry.id);
-    });
-
-    logDiv.appendChild(bubble);
-    logDiv.appendChild(dateDiv);
-    logDiv.appendChild(deleteBtn);
-    container.appendChild(logDiv);
+    const row = document.createElement("button");
+    row.className = `entry ${entry.type}`;
+    const name = document.createElement("span");
+    name.textContent = NAMES[entry.type];
+    const time = document.createElement("time");
+    time.textContent = timeLabel(entry.id);
+    row.append(name, time);
+    row.addEventListener("click", () => openEditor(entry));
+    list.append(row);
   });
 
-  // Scroll to extreme bottom (like opening a WhatsApp chat)
-  setTimeout(() => {
-    container.scrollTop = container.scrollHeight;
-  }, 10);
+  // Stay pinned to the newest entry (like a chat), unless scrolled up
+  if (nearEnd || scrollToEnd) timeline.scrollTop = timeline.scrollHeight;
+  scrollToEnd = false;
+}
+
+function renderButtons() {
+  document.querySelectorAll(".log-btn").forEach((btn) => {
+    const last = exercises.findLast((e) => e.type === btn.dataset.type);
+    btn.querySelector(".log-btn-last").textContent = last
+      ? lastLabel(last.id)
+      : "Not logged yet";
+  });
+}
+
+function renderStats() {
+  const count = (type) => exercises.filter((e) => e.type === type).length;
+  $("#stat-pushup").textContent = count("pushup");
+  $("#stat-pullup").textContent = count("pullup");
+  $("#stat-since").textContent = exercises.length
+    ? new Date(exercises[0].id).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "–";
+}
+
+function renderSync() {
+  const pending = syncMeta.hasPendingWrites || syncMeta.fromCache;
+  $("#sync-status").textContent = !navigator.onLine
+    ? "Offline"
+    : pending
+      ? "Syncing…"
+      : "";
+}
+
+let toastTimer;
+function toast(message) {
+  const el = $("#toast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+function showError(err) {
+  toast("Something went wrong: " + err.message);
+}
+
+// --- EDIT DIALOG ---
+function openEditor(entry) {
+  editTarget = entry;
+  const date = new Date(entry.id);
+  editForm.elements.type.value = entry.type;
+  editForm.elements.date.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  editForm.elements.time.value = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  delete deleteBtn.dataset.armed;
+  deleteBtn.textContent = "Delete";
+  editDialog.showModal();
+}
+
+function submitEditor() {
+  const { type, date, time } = Object.fromEntries(new FormData(editForm));
+  const [year, month, day] = date.split("-").map(Number);
+  const [hours, minutes] = time.split(":").map(Number);
+  // Keep the original seconds/ms so the new key won't clash with another entry
+  const old = new Date(editTarget.id);
+  const id = new Date(
+    year,
+    month - 1,
+    day,
+    hours,
+    minutes,
+    old.getSeconds(),
+    old.getMilliseconds(),
+  ).getTime();
+  saveEntry(editTarget.id, id, type);
+}
+
+// First tap arms the button, second tap deletes
+function deleteFromEditor() {
+  if (!deleteBtn.dataset.armed) {
+    deleteBtn.dataset.armed = "true";
+    deleteBtn.textContent = "Confirm delete";
+    return;
+  }
+  deleteEntry(editTarget.id);
+  editDialog.close();
+}
+
+// --- VIEWS ---
+function showView() {
+  const view = location.hash === "#settings" ? "settings" : "log";
+  document.body.dataset.view = view;
+  if (view === "log") timeline.scrollTop = timeline.scrollHeight;
+}
+
+function openSettings() {
+  // A history entry lets the phone's back button return to the log
+  history.pushState({ view: "settings" }, "", "#settings");
+  showView();
+}
+
+function closeSettings() {
+  if (history.state?.view === "settings") return history.back();
+  history.replaceState(null, "", location.pathname);
+  showView();
 }
 
 // --- SETTINGS (THEME, EXPORT, IMPORT) ---
-function initTheme() {
-  const toggle = document.getElementById("theme-toggle");
-  const savedTheme = localStorage.getItem("theme");
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-  if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
-    document.documentElement.setAttribute("data-theme", "dark");
-    toggle.checked = true;
-  } else {
-    document.documentElement.setAttribute("data-theme", "light");
-    toggle.checked = false;
-  }
+function applyTheme(choice) {
+  if (choice === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = choice;
+  document.querySelectorAll("[data-theme-choice]").forEach((btn) => {
+    btn.setAttribute("aria-pressed", btn.dataset.themeChoice === choice);
+  });
 }
 
-function toggleTheme() {
-  const isDark = document.getElementById("theme-toggle").checked;
-  const theme = isDark ? "dark" : "light";
-  document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("theme", theme);
+function setTheme(choice) {
+  localStorage.setItem("theme", choice);
+  applyTheme(choice);
 }
 
 function exportData() {
@@ -240,7 +329,10 @@ function exportData() {
     encodeURIComponent(JSON.stringify(exercises));
   const anchor = document.createElement("a");
   anchor.setAttribute("href", dataStr);
-  anchor.setAttribute("download", "workout_backup.json");
+  anchor.setAttribute(
+    "download",
+    `pushpull-${new Date().toISOString().slice(0, 10)}.json`,
+  );
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
@@ -256,13 +348,13 @@ function importData(event) {
     try {
       const imported = JSON.parse(e.target.result);
       if (Array.isArray(imported)) {
-        await uploadEntries(imported);
-        alert("Data successfully imported!");
+        const count = await uploadEntries(imported);
+        toast(`Imported ${count} entries`);
       } else {
-        alert("Invalid file format.");
+        toast("That file isn't a PushPull backup");
       }
     } catch (err) {
-      alert("Import failed: " + err.message);
+      toast("Import failed: " + err.message);
     }
     event.target.value = ""; // Reset input
   };
@@ -276,26 +368,33 @@ document
     btn.addEventListener("click", () => logExercise(btn.dataset.type)),
   );
 document
-  .querySelectorAll(".nav-btn")
+  .querySelectorAll("[data-theme-choice]")
   .forEach((btn) =>
-    btn.addEventListener("click", () => switchView(btn.dataset.view, btn)),
+    btn.addEventListener("click", () => setTheme(btn.dataset.themeChoice)),
   );
-document.getElementById("theme-toggle").addEventListener("change", toggleTheme);
-document.getElementById("export-btn").addEventListener("click", exportData);
-document
-  .getElementById("import-btn")
-  .addEventListener("click", () =>
-    document.getElementById("import-file").click(),
-  );
-document.getElementById("import-file").addEventListener("change", importData);
-document
-  .querySelector(".modal-btn.cancel")
-  .addEventListener("click", closeDeleteModal);
-document
-  .querySelector(".modal-btn.delete")
-  .addEventListener("click", confirmDelete);
+$("#settings-btn").addEventListener("click", openSettings);
+$("#back-btn").addEventListener("click", closeSettings);
+window.addEventListener("popstate", showView);
+$("#export-btn").addEventListener("click", exportData);
+$("#import-btn").addEventListener("click", () => $("#import-file").click());
+$("#import-file").addEventListener("change", importData);
+editForm.addEventListener("submit", submitEditor);
+deleteBtn.addEventListener("click", deleteFromEditor);
+$("#cancel-edit").addEventListener("click", () => editDialog.close());
+// Tapping the dim backdrop closes the dialog
+editDialog.addEventListener("click", (e) => {
+  if (e.target === editDialog) editDialog.close();
+});
+window.addEventListener("online", renderSync);
+window.addEventListener("offline", renderSync);
+// Phones keep tabs open for days, so refresh "Today"/"2 days ago" on return
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) render();
+});
 
 // --- INIT APP ON LOAD ---
-initTheme();
+applyTheme(localStorage.getItem("theme") || "system");
+showView();
 listen();
 migrateLocalData().catch(showError);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
