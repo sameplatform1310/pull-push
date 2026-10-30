@@ -92,7 +92,8 @@ button {
 }
 time,
 .value,
-.log-btn-last {
+.log-btn-last,
+.today {
   font-variant-numeric: tabular-nums;
 }
 .icon {
@@ -204,6 +205,11 @@ body[data-view="settings"] .log-only {
   gap: var(--space-3);
   padding-block: var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
   border-top: var(--hairline);
+}
+.today {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-muted);
 }
 .log-btn {
   display: grid;

@@ -153,6 +153,7 @@ function listen() {
 
 // --- RENDER ---
 function render() {
+  renderToday();
   renderTimeline();
   renderButtons();
   renderStats();
@@ -203,6 +204,15 @@ function renderTimeline() {
   // Stay pinned to the newest entry (like a chat), unless scrolled up
   if (nearEnd || scrollToEnd) timeline.scrollTop = timeline.scrollHeight;
   scrollToEnd = false;
+}
+
+function renderToday() {
+  // Returns format: "Sun, May 10"
+  $("#today").textContent = new Date().toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function renderButtons() {
@@ -394,6 +404,7 @@ document.addEventListener("visibilitychange", () => {
 
 // --- INIT APP ON LOAD ---
 applyTheme(localStorage.getItem("theme") || "system");
+renderToday();
 showView();
 listen();
 migrateLocalData().catch(showError);
